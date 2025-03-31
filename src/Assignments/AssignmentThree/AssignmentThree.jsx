@@ -4,15 +4,24 @@ import "./AssignmentThree.css";
 function AssignmentThree() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); // State to track errors
 
   useEffect(() => {
     fetch("https://jsonplaceholder.typicode.com/users")
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.json();
+      })
       .then((data) => {
         setUsers(data);
         setLoading(false);
       })
-      .catch((error) => console.error("Error fetching data:", error));
+      .catch((error) => {
+        setError(error.message);
+        setLoading(false);
+      });
   }, []);
 
   return (
@@ -27,6 +36,8 @@ function AssignmentThree() {
 
       {loading ? (
         <p className="loading">Loading...</p>
+      ) : error ? (
+        <p className="error">Error: {error}</p>
       ) : (
         <div className="table-container">
           <table className="user-table">
@@ -46,7 +57,7 @@ function AssignmentThree() {
                   <td data-label="Name">{user.name}</td>
                   <td data-label="Email">{user.email}</td>
                   <td data-label="Phone">{user.phone}</td>
-                  <td data-label="Company">{user.company.name}</td>
+                  <td data-label="Company">{user.company && user.company.name ? user.company.name : "N/A"}</td>
                 </tr>
               ))}
             </tbody>

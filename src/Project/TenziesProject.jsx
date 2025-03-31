@@ -3,64 +3,47 @@ import "./TenziesProject.css";
 import Die from "./Die";
 
 export default function TenziesProject() {
+    const [dice, setDice] = useState(generateAllNewDice);
 
-    const [dice, setDice] = useState(() => generateAllNewDice());
+    const gameWon = dice.every(die => die.isClicked && die.value === dice[0].value);
 
-    const gameWon = dice.every(die => die.isClicked) && 
-                    dice.every(die => die.value === dice[0].value);
-
-    function generateAllNewDice () {
-        const newDice = [];
-
-        for (let i = 0; i < 10; i++) {
-            const rand = { 
-                value: Math.ceil(Math.random() * 6), 
-                isClicked: false,
-                id: i + 1 
-            };
-            newDice.push(rand);
-        }
-
-        return newDice;
+    function generateAllNewDice() {
+        return Array.from({ length: 10 }, (_, i) => ({
+            id: i + 1,
+            value: Math.ceil(Math.random() * 6),
+            isClicked: false
+        }));
     }
 
-    function rollDice() {   
-        if (!gameWon) {
-            setDice(oldDice => oldDice.map(die =>
-                die.isClicked ? die : { ...die, value: Math.ceil(Math.random() * 6) } 
-            ));    
-        }
-        else {
-            setDice(generateAllNewDice());
-        }
+    function rollDice() {
+        setDice(prevDice => 
+            gameWon ? generateAllNewDice() :
+            prevDice.map(die => die.isClicked ? die : { ...die, value: Math.ceil(Math.random() * 6) })
+        );
     }
 
     function hold(id) {
-        setDice(oldDice => oldDice.map(die =>
-            die.id === id ? { ...die, isClicked: !die.isClicked } : die
-        ));
+        setDice(prevDice => 
+            prevDice.map(die => (die.id === id ? { ...die, isClicked: !die.isClicked } : die))
+        );
     }
 
-    const diceElements = dice.map(dieObj => (
-        <Die 
-            key = {dieObj.id}
-            value = {dieObj.value} 
-            isClicked = {dieObj.isClicked}
-            hold = {hold}
-            id = {dieObj.id}
-        />
-    ));
-
-    return ( 
+    return (
         <div className="project-container">
             <main>
-                <h1 className="title">
-                    {gameWon ? "Congrats, You Won!" : "Tenzies"} 
-                </h1>
-                <p className="instructions">Roll until all dice are the same. Click each die to freeze it at its current value between rolls.</p>
+                <h1 className="title">{gameWon ? "Congrats, You Won!" : "Tenzies"}</h1>
+                <p className="instructions">
+                    Roll until all dice are the same. Click each die to freeze it at its current value between rolls.
+                </p>
 
                 <div className="dice-container">
-                    {diceElements}
+                    {dice.map(die => (
+                        <Die 
+                            key={die.id}
+                            {...die} 
+                            hold={hold}
+                        />
+                    ))}
                 </div>
 
                 <button className="roll-dice-btn" onClick={rollDice}>
@@ -68,5 +51,5 @@ export default function TenziesProject() {
                 </button>
             </main>
         </div>
-    )
+    );
 }

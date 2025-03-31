@@ -1,114 +1,103 @@
-import React, { useState, useEffect } from "react";
-import "./AssignmentFour.css"; // Import CSS
+import React, { useState, useEffect, useCallback } from "react";
+import "./AssignmentFour.css";
 
 function AssignmentFour() {
-  const [regions, setRegions] = useState([]);
-  const [provinces, setProvinces] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [barangays, setBarangays] = useState([]);
-  const [selectedRegion, setSelectedRegion] = useState("");
-  const [selectedProvince, setSelectedProvince] = useState("");
-  const [selectedCity, setSelectedCity] = useState("");
-  const [selectedBarangay, setSelectedBarangay] = useState("");
-  const [zipCode, setZipCode] = useState("");
-  const [otherAddress, setOtherAddress] = useState("");
+  const [addressData, setAddressData] = useState({
+    regions: [],
+    provinces: [],
+    cities: [],
+    barangays: [],
+    selectedRegion: "",
+    selectedProvince: "",
+    selectedCity: "",
+    selectedBarangay: "",
+    zipCode: "",
+    otherAddress: "",
+  });
+
   const [displayAddress, setDisplayAddress] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchRegions = async () => {
-      try {
-        const response = await fetch("https://psgc.cloud/api/regions");
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setRegions(data);
-        } else {
-          console.error("Unexpected response format:", data);
-        }
-      } catch (error) {
-        console.error("Error fetching regions:", error);
-      }
-    };
-
-    fetchRegions();
+  /** Fetch Data Utility Function */
+  const fetchData = useCallback(async (url, stateKey) => {
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error("Unexpected response format");
+      setAddressData((prev) => ({ ...prev, [stateKey]: data }));
+    } catch (err) {
+      console.error(`Error fetching ${stateKey}:`, err);
+      setError(`Failed to fetch ${stateKey}. Please try again.`);
+    }
   }, []);
 
-  const handleRegionChange = (e) => {
+  /** Fetch Regions on Mount */
+  useEffect(() => {
+    fetchData("https://psgc.cloud/api/regions", "regions").finally(() =>
+      setLoading(false)
+    );
+  }, [fetchData]);
+
+  /** Handle Region Change */
+  const handleRegionChange = async (e) => {
     const regionCode = e.target.value;
-    setSelectedRegion(regionCode);
-    setSelectedProvince("");
-    setSelectedCity("");
-    setSelectedBarangay("");
-    setProvinces([]);
-    setCities([]);
-    setBarangays([]);
+    setAddressData((prev) => ({
+      ...prev,
+      selectedRegion: regionCode,
+      selectedProvince: "",
+      selectedCity: "",
+      selectedBarangay: "",
+      provinces: [],
+      cities: [],
+      barangays: [],
+    }));
 
-    if (regionCode) {
-      fetch(`https://psgc.cloud/api/regions/${regionCode}/provinces`)
-        .then((response) => response.json())
-        .then((data) => setProvinces(data || []))
-        .catch((error) => console.error("Error fetching provinces:", error));
-    }
+    if (regionCode) await fetchData(`https://psgc.cloud/api/regions/${regionCode}/provinces`, "provinces");
   };
 
-  const handleProvinceChange = (e) => {
+  /** Handle Province Change */
+  const handleProvinceChange = async (e) => {
     const provinceCode = e.target.value;
-    setSelectedProvince(provinceCode);
-    setSelectedCity("");
-    setSelectedBarangay("");
-    setCities([]);
+    setAddressData((prev) => ({
+      ...prev,
+      selectedProvince: provinceCode,
+      selectedCity: "",
+      selectedBarangay: "",
+      cities: [],
+      barangays: [],
+    }));
 
-    if (provinceCode) {
-      fetch(
-        `https://psgc.cloud/api/provinces/${provinceCode}/cities-municipalities`
-      )
-        .then((response) => response.json())
-        .then((data) => setCities(data || []))
-        .catch((error) => console.error("Error fetching cities:", error));
-    }
+    if (provinceCode) await fetchData(`https://psgc.cloud/api/provinces/${provinceCode}/cities-municipalities`, "cities");
   };
 
-  const handleCityChange = (e) => {
+  /** Handle City Change */
+  const handleCityChange = async (e) => {
     const cityCode = e.target.value;
-    setSelectedCity(cityCode);
-    setSelectedBarangay("");
+    setAddressData((prev) => ({
+      ...prev,
+      selectedCity: cityCode,
+      selectedBarangay: "",
+      barangays: [],
+    }));
 
-    if (cityCode) {
-      fetch(`https://psgc.cloud/api/municipalities/${cityCode}/barangays`)
-        .then((response) => response.json())
-        .then((data) => setBarangays(data || []))
-        .catch((error) => console.error("Error fetching barangays:", error));
-    }
+    if (cityCode) await fetchData(`https://psgc.cloud/api/municipalities/${cityCode}/barangays`, "barangays");
   };
 
+  /** Handle Confirmation */
   const handleConfirm = () => {
-    if (
-      !selectedRegion ||
-      !selectedProvince ||
-      !selectedCity ||
-      !selectedBarangay ||
-      !zipCode
-    ) {
+    const { selectedRegion, selectedProvince, selectedCity, selectedBarangay, zipCode, otherAddress } = addressData;
+    if (!selectedRegion || !selectedProvince || !selectedCity || !selectedBarangay || !zipCode) {
       alert("Please fill out all required fields.");
       return;
     }
 
-    const regionName =
-      regions.find((region) => region.code === selectedRegion)?.name ||
-      "Unknown Region";
-    const provinceName =
-      provinces.find((province) => province.code === selectedProvince)?.name ||
-      "Unknown Province";
-    const cityName =
-      cities.find((city) => city.code === selectedCity)?.name || "Unknown City";
-    const barangayName =
-      barangays.find((barangay) => barangay.code === selectedBarangay)?.name ||
-      "Unknown Barangay";
+    const findName = (list, code) => list.find((item) => item.code === code)?.name || "Unknown";
 
     setDisplayAddress(
-      `You live in   ${
-        otherAddress || ""
-      }, ${barangayName}, ${cityName}, ${provinceName}, ${regionName}, ${zipCode}, Philippines. 
-      `
+      `${otherAddress ? otherAddress + ", " : ""}${findName(addressData.barangays, selectedBarangay)}, 
+      ${findName(addressData.cities, selectedCity)}, ${findName(addressData.provinces, selectedProvince)}, 
+      ${findName(addressData.regions, selectedRegion)}, ${zipCode}, Philippines.`
     );
   };
 
@@ -117,92 +106,102 @@ function AssignmentFour() {
       <div className="address-wrapper">
         <div className="title-container">
           <h1>My Address</h1>
-          <p>
-            {" "}
-            Explore conditional rendering by fetching address details from an
-            external API. The data is displayed only when successfully
-            retrieved, showcasing how to handle loading states, API errors, and
-            dynamic UI updates effectively.
-          </p>
+          <p>Fetch and display address data dynamically using an API.</p>
         </div>
-        {displayAddress && (
-          <div className="address-display">{displayAddress}</div>
+
+        {loading && <p>Loading address data...</p>}
+        {error && <p className="error-message">{error}</p>}
+
+        {!loading && !error && (
+          <>
+            {displayAddress && <div className="address-display">{displayAddress}</div>}
+
+            <div className="form-group">
+              <label htmlFor="region">Region</label>
+              <select id="region" value={addressData.selectedRegion} onChange={handleRegionChange}>
+                <option value="">Select a Region</option>
+                {addressData.regions.map(({ code, name }) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="province">Province</label>
+              <select
+                id="province"
+                value={addressData.selectedProvince}
+                onChange={handleProvinceChange}
+                disabled={!addressData.provinces.length}
+              >
+                <option value="">Select a Province</option>
+                {addressData.provinces.map(({ code, name }) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="city">City/Municipality</label>
+              <select
+                id="city"
+                value={addressData.selectedCity}
+                onChange={handleCityChange}
+                disabled={!addressData.cities.length}
+              >
+                <option value="">Select a City</option>
+                {addressData.cities.map(({ code, name }) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="barangay">Barangay</label>
+              <select
+                id="barangay"
+                value={addressData.selectedBarangay}
+                onChange={(e) => setAddressData((prev) => ({ ...prev, selectedBarangay: e.target.value }))}
+                disabled={!addressData.barangays.length}
+              >
+                <option value="">Select a Barangay</option>
+                {addressData.barangays.map(({ code, name }) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="zipCode">ZIP Code</label>
+              <input
+                id="zipCode"
+                type="text"
+                value={addressData.zipCode}
+                onChange={(e) => setAddressData((prev) => ({ ...prev, zipCode: e.target.value }))}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="otherAddress">Other Address (Optional)</label>
+              <input
+                id="otherAddress"
+                type="text"
+                value={addressData.otherAddress}
+                onChange={(e) => setAddressData((prev) => ({ ...prev, otherAddress: e.target.value }))}
+              />
+            </div>
+
+            <button onClick={handleConfirm}>Confirm</button>
+          </>
         )}
-        <div className="form-group">
-          <label htmlFor="region">Region</label>
-          <select
-            id="region"
-            value={selectedRegion}
-            onChange={handleRegionChange}
-          >
-            <option value="">Select a Region</option>
-            {regions.map((region) => (
-              <option key={region.code} value={region.code}>
-                {region.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-group">
-          <label htmlFor="province">Province</label>
-          <select
-            id="province"
-            value={selectedProvince}
-            onChange={handleProvinceChange}
-          >
-            <option value="">Select a Province</option>
-            {provinces.map((province) => (
-              <option key={province.code} value={province.code}>
-                {province.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-group">
-          <label htmlFor="city">City/Municipality</label>
-          <select id="city" value={selectedCity} onChange={handleCityChange}>
-            <option value="">Select a City</option>
-            {cities.map((city) => (
-              <option key={city.code} value={city.code}>
-                {city.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-group">
-          <label htmlFor="barangay">Barangay</label>
-          <select
-            id="barangay"
-            value={selectedBarangay}
-            onChange={(e) => setSelectedBarangay(e.target.value)}
-          >
-            <option value="">Select a Barangay</option>
-            {barangays.map((barangay) => (
-              <option key={barangay.code} value={barangay.code}>
-                {barangay.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-group">
-          <label htmlFor="zipCode">ZIP Code</label>
-          <input
-            id="zipCode"
-            type="text"
-            value={zipCode}
-            onChange={(e) => setZipCode(e.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="otherAddress">Other Address (Optional)</label>
-          <input
-            id="otherAddress"
-            type="text"
-            value={otherAddress}
-            onChange={(e) => setOtherAddress(e.target.value)}
-          />
-        </div>
-        <button onClick={handleConfirm}>Confirm</button>
       </div>
     </div>
   );

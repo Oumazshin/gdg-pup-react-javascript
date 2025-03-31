@@ -14,19 +14,19 @@ function Box({ title, content }) {
 function AssignmentTwo() {
   const data = [
     {
-      title: "Portfolio Website",
+      title: "Portfolio Website for Personal Branding",
       content:
         "A personal website to showcase my projects, skills, and experience. It will include an interactive UI, blog section, and a contact form.",
     },
     {
-      title: "Chess Learning Website",
+      title: "Gamified to do list app with aid of AI",
       content:
-        "An interactive 3D chess website built with Three.js that teaches users how to play chess through tutorials, challenges, and AI-driven practice games.",
+        "A to-do list application that gamifies task management by rewarding users for completing tasks. It will use AI to suggest tasks based on user preferences.",
     },
     {
-      title: "Startup Website",
+      title: "Startup Website for School Organization",
       content:
-        "A professional website for my team and I to showcase our freelance work, services, and completed projects. It will include a portfolio section and a client contact form.",
+        "A website for a school organization to promote events, share resources, and connect with students. It will include a calendar, event registration, and a blog.",
     },
   ];
 
